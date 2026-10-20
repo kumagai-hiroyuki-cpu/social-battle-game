@@ -86,10 +86,10 @@ if "score_p1" not in st.session_state: st.session_state.score_p1 = 0
 if "score_p2" not in st.session_state: st.session_state.score_p2 = 0
 if "cpu_term" not in st.session_state: st.session_state.cpu_term = ""
 
-# --- 💡 AIによる無限・マニアック用語の自動生成 ---
+# --- 💡 AIによるCPU用語の自動生成（日本史・世界史・地理・倫理・政治経済） ---
 def generate_kansho_cpu_term():
-    prompt = """あなたは高校社会科の超難問を作る出題者です。
-日本史、世界史、地理、公民の教科書や資料集の隅に載っているような、一筋縄ではいかない「マニアックで深い歴史・社会科用語」を1つだけ選んで、その用語の名前だけを答えてください。
+    prompt = """あなたは高校社会科（日本史・世界史・地理・倫理・政治経済）の出題者です。
+高校レベルの重要かつ魅力的な社会科用語（日本史・世界史・地理・倫理・政治経済のいずれか）を1つだけ選んで、その用語の名前だけを答えてください。
 説明や記号、前置きは一切不要で、用語名のみを出力してください。"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -100,41 +100,46 @@ def generate_kansho_cpu_term():
     except:
         pass
     
-    # 失敗時の豊富なフォールバックリスト
     fallback_topics = [
-        "大化の改新", "サンフランシスコ平和条約", "ハンムラビ法典", "エンクロージャー", 
-        "カルスト地形", "カノッサの屈辱", "ザントホップの農法", "ブロック経済", 
-        "プロテスタントの倫理", "ミティレンの議論", "サラトガの戦い", "三世一身の法",
-        "ヴォルムス協約", "大憲章（マグナ・カルタ）", "アヴィニョン捕囚", "ナントの勅令",
-        "ウェストファリア条約", "サン＝ジェルマン条約", "ロカルノ条約", "ファラデーの電磁誘導"
+        "大化の改新", "サンフランシスコ平和条約", "三世一身の法", "加藤高明内閣", "墾田永年私財法", "陸奥宗光の条約改正",
+        "ハンムラビ法典", "エンクロージャー", "カノッサの屈辱", "ザントホップの農法", "ミティレンの議論", "サラトガの戦い", 
+        "ヴォルムス協約", "大憲章（マグナ・カルタ）", "アヴィニョン捕囚", "ナントの勅令", "ウェストファリア条約", "ロカルノ条約",
+        "カルスト地形", "サンゴ礁の離水", "回帰線砂漠", "フィヨルドとエスカー", "アグロフォレストリー",
+        "プロテスタントの倫理", "王陽明の知行合一", "ベンサムの最大多数の最大幸福", "ニーチェのルサンチマン", "カントの道徳律", "レヴィ＝ストロースの構造主義",
+        "ブロック経済", "ロールズの正義論", "ワイマール憲法", "夜警国家と福祉国家", "コモンズの悲劇", "ペティ＝クラークの法則", "ブレトンウッズ体制"
     ]
     return random.choice(fallback_topics)
 
-# --- 俳句甲子園風AI審判（理由説明 ＋ 相手への鑑賞を総合評価） ---
+# --- 🎯 評価基準を改訂したAI審査員長（正当性・熱量・鑑賞眼を総合評価） ---
 def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, name_a, name_b):
-    prompt = f"""あなたは俳句甲子園の審査員長のような、知性と熱血を兼ね備えたカリスマ社会科教師です。
-今回は【歴史用語・鑑賞バトル】（お互いの用語をオープンにし、「自分の理由説明」と「相手の用語への鑑賞・分析」で競う形式）のジャッジを行います。
+    prompt = f"""あなたは知性と熱血を兼ね備えたカリスマ社会科教師であり、俳句甲子園の審査員長です。
+【歴史・社会科用語 鑑賞バトル】（お互いの用語をオープンにし、「選んだ理由・説明」と「相手の用語への鑑賞・分析」で競う形式）のジャッジを行います。
 
 【プレイヤーA: {name_a}】
-- 自分の用語: {term_a}
-- 選んだ理由説明: {reason_a}
+- 用語: {term_a}
+- 選んだ理由・説明: {reason_a}
 - 相手（{name_b}）の用語への鑑賞・ツッコミ: {review_a}
 
 【プレイヤーB: {name_b}】
-- 自分の用語: {term_b}
-- 選んだ理由説明: {reason_b}
+- 用語: {term_b}
+- 選んだ理由・説明: {reason_b}
 - 相手（{name_a}）の用語への鑑賞・ツッコミ: {review_b}
 
-【ジャッジの最重要基準】
-1. 自分の用語の理由説明がどれだけ歴史的背景を突いて深く魅力的か。
-2. **相手の用語に対する「鑑賞眼」の鋭さ（相手の用語の良さを見抜いているか、的確なツッコミや分析ができているか）。**
-3. 勝者（"A" または "B"）を判定してください。
-4. コメントは必ず**5行程度（120〜150文字前後）**にし、双方の「鑑賞」の視点を褒める熱血実況にしてください。
+【判定基準（重要）】
+※用語がマニアックかどうかは評価基準から除外してください。定番の用語であっても問題ありません。
+以下の3点を総合的に審査して勝敗を決めてください：
+1. **説明の正当性・的確性**: 用語に対する理解や歴史的・社会科的事実の説明が正しいか。
+2. **熱量・プレゼン力**: 選んだ理由や主張に情熱、熱量、説得力があるか。
+3. **鑑賞眼・分析力**: 相手の選んだ用語に対する鑑賞・ツッコミが、相手の意図や用語の背景を捉えていて鋭いか。
+
+【出力形式】
+勝者を判定し（"A" または "B"）、審判講評コメント（5行程度 / 120〜150文字前後）を作成してください。
+※講評では、双方の熱量や正当性、鑑賞眼の良さに触れる熱血で説得力ある解説にしてください。
 
 以下のJSON形式のみで出力してください（他のテキストやマークダウンは不要）：
 {{
   "winner": "A" または "B",
-  "comment": "5行程度のコンパクトかつ熱血な鑑賞バトル実況解説コメント"
+  "comment": "5行程度の熱血かつ的確な審判講評コメント"
 }}"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -143,12 +148,12 @@ def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, 
         data = json.loads(text)
         return data["winner"], data["comment"]
     except Exception as e:
-        return "A", f"互いの用語に対する鋭い鑑賞眼が光る名勝負！深い分析力を見せた{name_a}の勝利だァーーッ！"
+        return "A", f"用語説明の的確さと熱量が激突した名勝負！特に{term_a}に対する説得力溢れる情熱と鋭い鑑賞眼を見せた{name_a}の勝利だァーーッ！"
 
 # ==========================================
 # 画面ロジック
 # ==========================================
-st.title("🏛️ 歴史用語・鑑賞バトル（俳句甲子園風）")
+st.title("🏛️ 社会科用語・鑑賞バトル（俳句甲子園風）")
 
 # --- メニュー画面 ---
 if st.session_state.page == "menu":
@@ -156,7 +161,7 @@ if st.session_state.page == "menu":
     
     st.write("---")
     st.markdown("### 📜 ルール：鑑賞バトルとは？")
-    st.caption("お互いの歴史用語がオープンになった状態で、①自分の用語の理由説明 と ②相手の用語への鑑賞（分析・ツッコミ）を記入し、総合力を競います！")
+    st.caption("お互いの社会科用語がオープンになった状態で、①自分の用語の選定理由・熱量説明 と ②相手の用語への鑑賞（分析・ツッコミ）を記入し、正当性・熱量・鑑賞眼で総合勝負します！")
     
     st.write("---")
     col1, col2 = st.columns(2)
@@ -222,13 +227,13 @@ elif st.session_state.page == "waiting":
 # --- ルール設定画面 ---
 elif st.session_state.page == "setup":
     st.subheader("⚙️ 鑑賞バトル（3本勝負）開始")
-    st.info("第1段階として、ラウンド開始時に歴史用語をそれぞれオープンします！")
+    st.info("第1段階として、ラウンド開始時に社会科用語をそれぞれオープンします！")
     
     if st.button("3本勝負バトルスタート！", type="primary"):
         st.session_state.round = 1
         st.session_state.score_p1 = 0
         st.session_state.score_p2 = 0
-        with st.spinner("🤖 AIが第一試合のマニアック用語を厳選中..."):
+        with st.spinner("🤖 AIが第一試合の用語を選定中..."):
             st.session_state.cpu_term = generate_kansho_cpu_term()
         
         if st.session_state.game_type == "online" and st.session_state.is_host:
@@ -250,17 +255,17 @@ elif st.session_state.page == "input":
         st.markdown(f"<div class='battle-card'><span class='mode-badge'>相手（CPU）のチョイス用語</span><div class='term-title'>{st.session_state.cpu_term}</div></div>", unsafe_allow_html=True)
 
     with st.form("kansho_form"):
-        my_term = st.text_input("① あなたが勝負に出す歴史用語")
-        my_reason = st.text_area("② なぜこの用語を選んだか？（理由・アピール説明）")
+        my_term = st.text_input("① あなたが勝負に出す社会科用語")
+        my_reason = st.text_area("② なぜこの用語を選んだか？（用語の正しい説明＆熱量アピール）")
         
         target_name = "相手（CPU）" if st.session_state.game_type == "cpu" else "対戦相手"
-        my_review = st.text_area(f"③ 【鑑賞】{target_name}が選んだ用語の良さや、鋭い分析・ツッコミを記入")
+        my_review = st.text_area(f"③ 【鑑賞】{target_name}が選んだ用語に対する分析・洞察・ツッコミ")
         
-        submit = st.form_submit_button("🔥 理由と鑑賞文を提出して判定へ！", type="primary")
+        submit = st.form_submit_button("🔥 熱量と鑑賞文を提出して判定へ！", type="primary")
         
         if submit:
             if not my_term.strip() or not my_reason.strip() or not my_review.strip():
-                st.error("①用語、②理由説明、③相手への鑑賞のすべてを入力してください！")
+                st.error("①用語、②理由・熱量説明、③相手への鑑賞のすべてを入力してください！")
             else:
                 if st.session_state.game_type == "online":
                     role = "host" if st.session_state.is_host else "guest"
@@ -270,9 +275,9 @@ elif st.session_state.page == "input":
                     st.session_state.page = "wait_result"
                     st.rerun()
                 else:
-                    with st.spinner("🤖 AI審査員長が双方の鑑賞眼を審議中..."):
-                        cpu_reason = f"{st.session_state.cpu_term}は歴史の転換点において極めて深い構造変化をもたらしたマスターピースだからだ。"
-                        cpu_review = f"プレイヤーの選んだ『{my_term}』も着眼点は面白いが、歴史に与えた余波の深さにおいては我が{st.session_state.cpu_term}のほうが一枚上手だな。"
+                    with st.spinner("🤖 AI審査員長が双方の正当性・熱量・鑑賞眼を審議中..."):
+                        cpu_reason = f"{st.session_state.cpu_term}は時代の構造や社会システムを根底から方向づけた不可欠な用語だ。歴史的ファクトとしてもその重要性は揺るぎない！"
+                        cpu_review = f"プレイヤーの選んだ『{my_term}』の正確な理解と情熱は評価できる。しかし、相手の意図を見ぬく鑑賞の深さでは我が{st.session_state.cpu_term}へのアプローチも負けてはいない！"
                         
                         winner, comment = judge_kansho_battle(
                             my_term, my_reason, my_review,
@@ -334,7 +339,7 @@ elif st.session_state.page == "wait_result":
 # --- 結果画面 ---
 elif st.session_state.page == "result":
     res = st.session_state.result
-    st.subheader(f"🏆 第 {st.session_state.round} ラウンド 鑑賞バトル判定")
+    st.subheader(f"🏆 第 {st.session_state.round} ラウンド 判定結果")
     
     winner_name = res["nameA"] if res["winner"] == "A" else res["nameB"]
     st.success(f"このラウンドの勝者：**{winner_name}** 👑")
@@ -342,12 +347,12 @@ elif st.session_state.page == "result":
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"**【{res['nameA']}】**")
-        st.info(f"用語: **{res['termA']}**\n\n📌 **理由**: {res['reasonA']}\n\n💬 **鑑賞**: {res['reviewA']}")
+        st.info(f"用語: **{res['termA']}**\n\n📌 **理由・説明**: {res['reasonA']}\n\n💬 **鑑賞**: {res['reviewA']}")
     with col2:
         st.markdown(f"**【{res['nameB']}】**")
-        st.info(f"**{res['termB']}**\n\n📌 **理由**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
+        st.info(f"用語: **{res['termB']}**\n\n📌 **理由・説明**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
         
-    st.markdown("### 🤖 審査員長AIの実況・鑑賞批評")
+    st.markdown("### 🤖 審査員長AIの熱血講評")
     st.markdown(f"<div class='ai-comment-box'>{res['comment']}</div>", unsafe_allow_html=True)
     
     st.write("---")
@@ -356,7 +361,7 @@ elif st.session_state.page == "result":
     if st.session_state.round < 3:
         if st.button("次ラウンドへ進む ➔", type="primary"):
             st.session_state.round += 1
-            with st.spinner("🤖 次のラウンドの用語を生成中..."):
+            with st.spinner("🤖 次ラウンドの用語を選定中..."):
                 st.session_state.cpu_term = generate_kansho_cpu_term()
             if st.session_state.game_type == "online" and st.session_state.is_host:
                 fb_patch(f"rooms/{st.session_state.room_code}", {
@@ -381,13 +386,13 @@ elif st.session_state.page == "final":
     
     if p1 > p2:
         st.header(f"👑 総合優勝：{st.session_state.player_name} ！！")
-        st.caption("卓越した用語の理由説明と、相手の用語を見抜く鋭い鑑賞眼で審査員長の心を完全に掴みました！")
+        st.caption("的確な用語説明の正当性、あふれ出る熱量、そして相手を見抜く見事な鑑賞眼で勝利を掴み取りました！")
     elif p2 > p1:
         st.header("💀 敗北……勝者：対戦相手 / CPU")
-        st.caption("相手の鋭い鑑賞眼と分析力の前に惜敗！次はさらに深い歴史的洞察でリベンジだ！")
+        st.caption("相手の熱量と鋭い鑑賞眼の前に惜敗！次はさらに熱い想いと論理でリベンジだ！")
     else:
         st.header("🤝 決着つかずのドロー！")
-        st.caption("互いの歴史に対する深い鑑賞眼が完璧にシンクロした、まさに伝説に残る名勝負でした！")
+        st.caption("互いの知識の正当性と熱量が完全に拮抗した、まさに歴史に残る素晴らしい名勝負でした！")
         
     st.metric(label="最終勝利数", value=f"{p1} 勝 - {p2} 勝")
     
