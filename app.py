@@ -78,7 +78,6 @@ def fb_patch(path, data):
 # --- セッション状態の初期化 ---
 if "page" not in st.session_state: st.session_state.page = "menu"
 if "game_type" not in st.session_state: st.session_state.game_type = "cpu"
-if "cpu_difficulty" not in st.session_state: st.session_state.cpu_difficulty = "kansho"
 if "room_code" not in st.session_state: st.session_state.room_code = ""
 if "is_host" not in st.session_state: st.session_state.is_host = False
 if "player_name" not in st.session_state: st.session_state.player_name = "プレイヤー1"
@@ -87,14 +86,29 @@ if "score_p1" not in st.session_state: st.session_state.score_p1 = 0
 if "score_p2" not in st.session_state: st.session_state.score_p2 = 0
 if "cpu_term" not in st.session_state: st.session_state.cpu_term = ""
 
-# --- 俳句甲子園風・鑑賞バトル用CPUの用語生成 ---
+# --- 💡 AIによる無限・マニアック用語の自動生成 ---
 def generate_kansho_cpu_term():
-    topics = [
-        "大化の改新", "サンフランシスコ平和条約", "ハンムラビ法典", 
-        "エンクロージャー", "カルスト地形", "カノッサの屈辱", 
-        "ザントホップの農法", "ブロック経済", "プロテスタントの倫理", "ミティレンの議論"
+    prompt = """あなたは高校社会科の超難問を作る出題者です。
+日本史、世界史、地理、公民の教科書や資料集の隅に載っているような、一筋縄ではいかない「マニアックで深い歴史・社会科用語」を1つだけ選んで、その用語の名前だけを答えてください。
+説明や記号、前置きは一切不要で、用語名のみを出力してください。"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        term = response.text.strip().replace('「', '').replace('」', '').replace('【', '').replace('】', '')
+        if term:
+            return term
+    except:
+        pass
+    
+    # 失敗時の豊富なフォールバックリスト
+    fallback_topics = [
+        "大化の改新", "サンフランシスコ平和条約", "ハンムラビ法典", "エンクロージャー", 
+        "カルスト地形", "カノッサの屈辱", "ザントホップの農法", "ブロック経済", 
+        "プロテスタントの倫理", "ミティレンの議論", "サラトガの戦い", "三世一身の法",
+        "ヴォルムス協約", "大憲章（マグナ・カルタ）", "アヴィニョン捕囚", "ナントの勅令",
+        "ウェストファリア条約", "サン＝ジェルマン条約", "ロカルノ条約", "ファラデーの電磁誘導"
     ]
-    return random.choice(topics)
+    return random.choice(fallback_topics)
 
 # --- 俳句甲子園風AI審判（理由説明 ＋ 相手への鑑賞を総合評価） ---
 def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, name_a, name_b):
@@ -208,13 +222,15 @@ elif st.session_state.page == "waiting":
 # --- ルール設定画面 ---
 elif st.session_state.page == "setup":
     st.subheader("⚙️ 鑑賞バトル（3本勝負）開始")
-    st.info("第1段階として、ラウンド開始時に歴史用語をそれぞれ入力、またはオープンします！")
+    st.info("第1段階として、ラウンド開始時に歴史用語をそれぞれオープンします！")
     
     if st.button("3本勝負バトルスタート！", type="primary"):
         st.session_state.round = 1
         st.session_state.score_p1 = 0
         st.session_state.score_p2 = 0
-        st.session_state.cpu_term = generate_kansho_cpu_term()
+        with st.spinner("🤖 AIが第一試合のマニアック用語を厳選中..."):
+            st.session_state.cpu_term = generate_kansho_cpu_term()
+        
         if st.session_state.game_type == "online" and st.session_state.is_host:
             fb_patch(f"rooms/{st.session_state.room_code}", {
                 "status": "playing", "round": 1,
@@ -230,7 +246,6 @@ elif st.session_state.page == "input":
     st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦")
     st.write(f"現在のスコア: あなた **{st.session_state.score_p1}** - **{st.session_state.score_p2}** 相手/CPU")
     
-    # CPU対戦の場合、相手の用語をあらかじめオープン表示
     if st.session_state.game_type == "cpu":
         st.markdown(f"<div class='battle-card'><span class='mode-badge'>相手（CPU）のチョイス用語</span><div class='term-title'>{st.session_state.cpu_term}</div></div>", unsafe_allow_html=True)
 
@@ -255,15 +270,15 @@ elif st.session_state.page == "input":
                     st.session_state.page = "wait_result"
                     st.rerun()
                 else:
-                    # CPUの自動理由・鑑賞生成
-                    cpu_reason = f"{st.session_state.cpu_term}は時代の構造を根本から変えた歴史のマスターピースだからだ！"
-                    cpu_review = f"プレイヤー側の用語『{my_term}』も面白いが、我が{st.session_state.cpu_term}の歴史的インパクトの深さには及ばないな！"
-                    
-                    winner, comment = judge_kansho_battle(
-                        my_term, my_reason, my_review,
-                        st.session_state.cpu_term, cpu_reason, cpu_review,
-                        st.session_state.player_name, "鑑賞CPU"
-                    )
+                    with st.spinner("🤖 AI審査員長が双方の鑑賞眼を審議中..."):
+                        cpu_reason = f"{st.session_state.cpu_term}は歴史の転換点において極めて深い構造変化をもたらしたマスターピースだからだ。"
+                        cpu_review = f"プレイヤーの選んだ『{my_term}』も着眼点は面白いが、歴史に与えた余波の深さにおいては我が{st.session_state.cpu_term}のほうが一枚上手だな。"
+                        
+                        winner, comment = judge_kansho_battle(
+                            my_term, my_reason, my_review,
+                            st.session_state.cpu_term, cpu_reason, cpu_review,
+                            st.session_state.player_name, "鑑賞CPU"
+                        )
                     
                     if winner == "A": st.session_state.score_p1 += 1
                     else: st.session_state.score_p2 += 1
@@ -330,7 +345,7 @@ elif st.session_state.page == "result":
         st.info(f"用語: **{res['termA']}**\n\n📌 **理由**: {res['reasonA']}\n\n💬 **鑑賞**: {res['reviewA']}")
     with col2:
         st.markdown(f"**【{res['nameB']}】**")
-        st.info(f"用語: **{res['termB']}**\n\n📌 **理由**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
+        st.info(f"**{res['termB']}**\n\n📌 **理由**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
         
     st.markdown("### 🤖 審査員長AIの実況・鑑賞批評")
     st.markdown(f"<div class='ai-comment-box'>{res['comment']}</div>", unsafe_allow_html=True)
@@ -341,7 +356,8 @@ elif st.session_state.page == "result":
     if st.session_state.round < 3:
         if st.button("次ラウンドへ進む ➔", type="primary"):
             st.session_state.round += 1
-            st.session_state.cpu_term = generate_kansho_cpu_term()
+            with st.spinner("🤖 次のラウンドの用語を生成中..."):
+                st.session_state.cpu_term = generate_kansho_cpu_term()
             if st.session_state.game_type == "online" and st.session_state.is_host:
                 fb_patch(f"rooms/{st.session_state.room_code}", {
                     "round": st.session_state.round,
