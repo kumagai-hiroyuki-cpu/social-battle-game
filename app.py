@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- カスタムCSS（視認性向上・読みやすいコメントボックス） ---
+# --- カスタムCSS ---
 st.markdown("""
 <style>
     .stButton>button { width: 100%; border-radius: 12px; font-weight: bold; }
@@ -78,6 +78,7 @@ def fb_patch(path, data):
 # --- セッション状態の初期化 ---
 if "page" not in st.session_state: st.session_state.page = "menu"
 if "game_type" not in st.session_state: st.session_state.game_type = "cpu"
+if "cpu_difficulty" not in st.session_state: st.session_state.cpu_difficulty = "yukkuri"
 if "room_code" not in st.session_state: st.session_state.room_code = ""
 if "is_host" not in st.session_state: st.session_state.is_host = False
 if "player_name" not in st.session_state: st.session_state.player_name = "プレイヤー1"
@@ -92,28 +93,52 @@ MODES = {
     "love": {"name": "❤️ 自由部門（用語愛）", "desc": "その用語がどれだけ好きか・推せるポイントを熱く偏愛的に語る！", "label": "この用語への愛・推しポイント"}
 }
 
-# --- CPUの「ガチ・マニアック」用語データ ---
-CPU_DATA = {
+# --- ゆっくりモード用の固定マニアック用語データ ---
+YUKKURI_DATA = {
     "waza": [
         {"t": "ハンムラビ法典", "d": "目には目、歯には歯を！容赦ない同害報復で社会の秩序を鉄槌の如く死守する古代の絶対シールド！"},
         {"t": "サラトガの戦い", "d": "独立軍がイギリス軍を初めて全面降伏させ、フランスを参戦に導いた歴史の形勢逆転グランドクロス！"},
-        {"t": "大化の改新", "d": "豪族の権力を一網打尽にし、天皇中心の律令国家という最強の統治システムを構築する神聖バースト！"},
         {"t": "三世一身の法", "d": "開墾した土地の私有を三世代まで認め、農民の開墾意欲を限界突破させる古代の錬金術！"}
     ],
     "impact": [
         {"t": "エンクロージャー", "d": "農地を囲い込んで農業資本主義を生み出し、あふれ出た農民を産業革命の労働力へと変えた歴史の巨大歯車！"},
-        {"t": "カルスト地形", "d": "雨水の溶食作用によって大地が削られ、地表のドリーネから地下の鍾乳洞まで作り上げる地球規模の造形芸術！"},
-        {"t": "ブロック経済", "d": "植民地を巻き込んで巨大な経済圏を囲い込み、世界を深刻な経済対立と戦争へと導いた諸刃の剣！"},
+        {"t": "カルスト地形", "d": "雨水の溶食作用で大地が削られ、地表のドリーネから地下の鍾乳洞まで作り上げる地球規模の造形芸術！"},
         {"t": "プロテスタントの倫理", "d": "勤勉と蓄財を神聖な使命とし、近代資本主義の精神的土台を根底から作り上げた思想的マグマ！"}
     ],
     "love": [
         {"t": "シーラカンス", "d": "数億年前から姿を変えずに生き抜いてきた『生きた化石』！深海のロマンと神秘が詰まりすぎていて尊すぎる！"},
         {"t": "葛飾北斎", "d": "あの圧倒的な構図と波の躍動感！世界の巨匠たちをも狂わせた、日本が誇る天才絵師を一生推し続けます！"},
-        {"t": "モールス信号", "d": "「トン・ツー」の単純な音の組み合わせだけで地球の裏側と心を通わせられる、究極に美しくミニマルな通信のロマン！"},
         {"t": "土偶", "d": "縄文人の祈りと呪術のロマンが爆発した造形美！宇宙人説すら出るその謎めいたデザインが最高に愛おしい！"}
     ]
 }
 
+# --- ガチモード用の動的AIカウンター生成 ---
+def generate_gachi_cpu_move(player_term, player_desc, mode_key):
+    prompt = f"""あなたは「社会科用語バトル」の最強AIプレイヤー（ガチCPU）です。
+対戦モード: 「{MODES[mode_key]['name']}」
+
+相手（プレイヤー）が以下の用語とアピールを出してきました。
+- 相手の用語: {player_term}
+- 相手のアピール: {player_desc}
+
+【あなたの使命】
+相手の用語に対抗するため、**さらに歴史的・地理的・公民的に深く、高校レベル以上のマニアックで強力な社会科用語**を1つ選び、その用語を使ったモードにふさわしい熱いアピール文（説明文）を自動生成してください。
+
+必ず以下のJSON形式のみで出力してください（他のテキストやマークダウンは不要）：
+{{
+  "cpu_term": "選んだマニアックな用語",
+  "cpu_desc": "その用語のモードに合わせた熱いアピール・決め台詞（100文字程度）"
+}}"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        return data["cpu_term"], data["cpu_desc"]
+    except:
+        return "ザントホップの農法", "三圃制をさらに進化させ、クローバーやカブで土地を痩せさせない最強の農業革命バースト！"
+
+# --- AI審判によるジャッジ ---
 def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
     prompt = f"""あなたは超熱血な社会科のカリスマ教師であり、テンション最高潮のゲーム実況風審判です。
 「社会科用語バトル」（モード: {MODES[mode_key]['name']}）の熱い勝負をジャッジしてください。
@@ -154,6 +179,17 @@ st.title("🏛️ 社会科用語バトル")
 if st.session_state.page == "menu":
     st.session_state.player_name = st.text_input("あなたの名前", value=st.session_state.player_name)
     
+    st.write("---")
+    st.subheader("🤖 CPU対戦の難易度を選択")
+    cpu_mode_choice = st.radio(
+        "CPUの強さを選んでください",
+        options=["yukkuri", "gachi"],
+        format_func=lambda x: "🐢 ゆっくりモード（気軽に楽しく対戦！）" if x == "yukkuri" else "🔥 ガチモード（最強AIが容赦なくカウンター！）",
+        index=0
+    )
+    st.session_state.cpu_difficulty = cpu_mode_choice
+    
+    st.write("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🌐 オンライン対戦（ルーム戦）", type="primary"):
@@ -161,7 +197,7 @@ if st.session_state.page == "menu":
             st.session_state.page = "lobby"
             st.rerun()
     with col2:
-        if st.button("🤖 ガチCPUと対戦"):
+        if st.button("🤖 CPUと対戦スタート"):
             st.session_state.game_type = "cpu"
             st.session_state.page = "setup"
             st.rerun()
@@ -216,7 +252,8 @@ elif st.session_state.page == "waiting":
 
 # --- ルール設定画面 ---
 elif st.session_state.page == "setup":
-    st.subheader("⚙️ バトル部門選択（3本勝負）")
+    diff_name = "ゆっくりモード" if st.session_state.cpu_difficulty == "yukkuri" else "🔥 ガチモード"
+    st.subheader(f"⚙️ バトル部門選択（3本勝負 / {diff_name}）")
     selected_mode = st.radio("部門を選択", options=list(MODES.keys()), format_func=lambda x: MODES[x]["name"])
     st.caption(MODES[selected_mode]["desc"])
     
@@ -236,11 +273,12 @@ elif st.session_state.page == "setup":
 
 # --- 入力画面 ---
 elif st.session_state.page == "input":
+    diff_name = "ゆっくり" if st.session_state.cpu_difficulty == "yukkuri" else "🔥ガチ"
     st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦 ({MODES[st.session_state.game_mode]['name']})")
-    st.write(f"現在のスコア: あなた **{st.session_state.score_p1}** - **{st.session_state.score_p2}** 相手/CPU")
+    st.write(f"現在のスコア: あなた **{st.session_state.score_p1}** - **{st.session_state.score_p2}** ({diff_name}CPU)")
     
     with st.form("input_form"):
-        term = st.text_input("社会科用語（マニアックなほど高得点チャンス！）")
+        term = st.text_input("社会科用語を入力")
         desc = st.text_area(MODES[st.session_state.game_mode]["label"])
         submit = st.form_submit_button("🔥 提出して勝負する！", type="primary")
         
@@ -256,19 +294,26 @@ elif st.session_state.page == "input":
                     st.session_state.page = "wait_result"
                     st.rerun()
                 else:
-                    cpu_choice = random.choice(CPU_DATA[st.session_state.game_mode])
+                    # 難易度によるCPU挙動の分岐
+                    if st.session_state.cpu_difficulty == "yukkuri":
+                        cpu_choice = random.choice(YUKKURI_DATA[st.session_state.game_mode])
+                        cpu_term, cpu_desc = cpu_choice["t"], cpu_choice["d"]
+                    else:
+                        with st.spinner("🤖 ガチCPUがあなたの用語を分析し、カウンターを構えています..."):
+                            cpu_term, cpu_desc = generate_gachi_cpu_move(term, desc, st.session_state.game_mode)
+                    
                     winner, comment = judge_with_gemini(
-                        term, desc, cpu_choice["t"], cpu_choice["d"],
-                        st.session_state.game_mode, st.session_state.player_name, "ガチCPU"
+                        term, desc, cpu_term, cpu_desc,
+                        st.session_state.game_mode, st.session_state.player_name, f"CPU({diff_name})"
                     )
                     
                     if winner == "A": st.session_state.score_p1 += 1
                     else: st.session_state.score_p2 += 1
                         
                     st.session_state.result = {
-                        "termA": term, "descA": desc, "termB": cpu_choice["t"], "descB": cpu_choice["d"],
+                        "termA": term, "descA": desc, "termB": cpu_term, "descB": cpu_desc,
                         "winner": winner, "comment": comment,
-                        "nameA": st.session_state.player_name, "nameB": "ガチCPU",
+                        "nameA": st.session_state.player_name, "nameB": f"CPU({diff_name})",
                         "scoreP1": st.session_state.score_p1, "scoreP2": st.session_state.score_p2
                     }
                     st.session_state.page = "result"
@@ -358,10 +403,10 @@ elif st.session_state.page == "final":
     
     if p1 > p2:
         st.header(f"👑 総合優勝：{st.session_state.player_name} ！！")
-        st.caption("圧倒的な用語チョイスのセンスと知略、そして深い歴史愛が審判の心を撃ち抜きました！")
+        st.caption("素晴らしい用語センスと知略、そして深い歴史愛が審判の心を撃ち抜きました！")
     elif p2 > p1:
-        st.header("💀 敗北……勝者：対戦相手 / CPU")
-        st.caption("相手の鋭いマニアックな用語攻勢の前に惜敗！次はさらなるマニアックな知識でリベンジだ！")
+        st.header("💀 敗北……勝者：CPU")
+        st.caption("相手の鋭い用語攻勢の前に惜敗！次はさらなる知識でリベンジだ！")
     else:
         st.header("🤝 決着つかずのドロー！")
         st.caption("互いに一歩も譲らない驚異の知識量と熱量！まさに伝説に残る名勝負でした！")
@@ -372,3 +417,4 @@ elif st.session_state.page == "final":
     if st.button("タイトルに戻る"):
         st.session_state.page = "menu"
         st.rerun()
+
