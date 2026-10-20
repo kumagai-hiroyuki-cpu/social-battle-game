@@ -29,6 +29,13 @@ st.markdown("""
         padding: 4px 8px; border-radius: 6px;
         font-size: 0.8rem; font-weight: bold;
     }
+    .ai-comment-box {
+        background-color: #0f172a;
+        border-left: 4px solid #fbbf24;
+        padding: 16px;
+        border-radius: 0 12px 12px 0;
+        margin-top: 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -70,22 +77,40 @@ if "is_host" not in st.session_state: st.session_state.is_host = False
 if "player_name" not in st.session_state: st.session_state.player_name = "プレイヤー1"
 if "game_mode" not in st.session_state: st.session_state.game_mode = "waza"
 if "round" not in st.session_state: st.session_state.round = 1
+if "score_p1" not in st.session_state: st.session_state.score_p1 = 0
+if "score_p2" not in st.session_state: st.session_state.score_p2 = 0
 
 MODES = {
-    "waza": {"name": "⚡ 必殺技モード", "desc": "用語を必殺技風にアピール！決め台詞とカッコよさで勝負！", "label": "必殺技の効果・決め台詞"},
-    "impact": {"name": "💥 インパクト部門", "desc": "歴史や社会へ与えた影響力＆マニアックなチョイスの妙で勝負！", "label": "社会・歴史への影響力＆選定理由"},
-    "love": {"name": "❤️ 自由部門（用語愛）", "desc": "その用語がどれだけ好きか・推せるポイントを熱弁！", "label": "この用語への愛・推しポイント"}
+    "waza": {"name": "⚡ 必殺技モード", "desc": "用語を必殺技風にアピール！決め台詞とカッコよさ、技としての再現度で勝負！", "label": "必殺技の効果・決め台詞"},
+    "impact": {"name": "💥 インパクト部門", "desc": "歴史や社会へ与えた激震・マニアックなチョイスの妙と論理的影響力で勝負！", "label": "社会・歴史へのインパクト＆選定理由"},
+    "love": {"name": "❤️ 自由部門（用語愛）", "desc": "その用語がどれだけ好きか・推せるポイントを熱く偏愛的に語る！", "label": "この用語への愛・推しポイント"}
 }
 
+# --- CPUの「ガチ・マニアック」用語データ ---
 CPU_DATA = {
-    "waza": [{"t": "三世一身の法", "d": "開墾した土地の私有を三世代まで認め、意欲を爆発的にブーストする古代の錬金術！"}, {"t": "サンフランシスコ平和条約", "d": "主権を完全に取り戻す復活の聖別魔法陣！"}],
-    "impact": [{"t": "カルスト地形", "d": "雨水の溶食作用で大地が削られ、独特の鍾乳洞を作り上げる地球の造形美！"}, {"t": "エンクロージャー", "d": "資本主義的農業を生み出し産業革命の労働力を作り出した原動力！"}],
-    "love": [{"t": "シーラカンス", "d": "生きた化石と呼ばれる神秘的な姿！深海のロマンが詰まっていて最高！"}, {"t": "モールス信号", "d": "トトントンの音だけで世界中と意思疎通できるシンプルで美しすぎるロマン！"}]
+    "waza": [
+        {"t": "ハンムラビ法典", "d": "目には目、歯には歯を！容赦ない同害報復で社会の秩序を鉄槌の如く死守する古代の絶対シールド！"},
+        {"t": "サラトガの戦い", "d": "独立軍がイギリス軍を初めて全面降伏させ、フランスを参戦に導いた歴史の形勢逆転グランドクロス！"},
+        {"t": "大化の改新", "d": "豪族の権力を一網打尽にし、天皇中心の律令国家という最強の統治システムを構築する神聖バースト！"},
+        {"t": "三世一身の法", "d": "開墾した土地の私有を三世代まで認め、農民の開墾意欲を限界突破させる古代の錬金術！"}
+    ],
+    "impact": [
+        {"t": "エンクロージャー", "d": "農地を囲い込んで農業資本主義を生み出し、あふれ出た農民を産業革命の労働力へと変えた歴史の巨大歯車！"},
+        {"t": "カルスト地形", "d": "雨水の溶食作用によって大地が削られ、地表のドリーネから地下の鍾乳洞まで作り上げる地球規模の造形芸術！"},
+        {"t": "ブロック経済", "d": "植民地を巻き込んで巨大な経済圏を囲い込み、世界を深刻な経済対立と戦争へと導いた諸刃の剣！"},
+        {"t": "プロテスタントの倫理", "d": "勤勉と蓄財を神聖な使命とし、近代資本主義の精神的土台を根底から作り上げた思想的マグマ！"}
+    ],
+    "love": [
+        {"t": "シーラカンス", "d": "数億年前から姿を変えずに生き抜いてきた『生きた化石』！深海のロマンと神秘が詰まりすぎていて尊すぎる！"},
+        {"t": "葛飾北斎", "d": "あの圧倒的な構図と波の躍動感！世界の巨匠たちをも狂わせた、日本が誇る天才絵師を一生推し続けます！"},
+        {"t": "モールス信号", "d": "「トン・ツー」の単純な音の組み合わせだけで地球の裏側と心を通わせられる、究極に美しくミニマルな通信のロマン！"},
+        {"t": "土偶", "d": "縄文人の祈りと呪術のロマンが爆発した造形美！宇宙人説すら出るその謎めいたデザインが最高に愛おしい！"}
+    ]
 }
 
 def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
-    prompt = f"""あなたは中学・高校の社会科教師で、熱血なゲーム実況風の審判です。
-「社会科用語バトル」（モード: {MODES[mode_key]['name']}）の判定を行ってください。
+    prompt = f"""あなたは超熱血な社会科のカリスマ教師であり、テンション最高潮のゲーム実況風審判です。
+「社会科用語バトル」（モード: {MODES[mode_key]['name']}）の熱い勝負をジャッジしてください。
 
 【プレイヤーA: {name_a}】
 - 用語: {term_a}
@@ -95,15 +120,15 @@ def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
 - 用語: {term_b}
 - アピール: {desc_b}
 
-【判定基準】
-1. 安直で超定番すぎる用語（明治維新、産業革命等）よりも、「その角度で来たか！」「通でマニアックなチョイスだ！」というセンス・知識を高く評価してください。
-2. モードの趣旨（勢い・影響力・熱量）に合致しているか。
-3. 勝者を判定してください（"A" または "B"）。
+【ジャッジの最重要基準】
+1. 安直で誰でも知っている超定番すぎる用語（例: 明治維新、産業革命、鎌倉幕府など）ばかりだと減点対象です。「おっ、そのチョイスはマニアックで通だ！」「その角度から切り込むか！」という知的センスや独自の着眼点を狂ったほど高く評価してください。
+2. モード（{MODES[mode_key]['name']}）の趣旨にどれだけ魂を込めてアピールできているか。
+3. どちらが勝者（"A" または "B"）かを必ず決めてください。
 
-必ず以下のJSON形式のみで出力してください：
+以下のJSON形式のみで出力してください（マークダウンや他のテキストは一切含めないこと）：
 {{
   "winner": "A" または "B",
-  "comment": "熱い勝因解説コメント（150文字程度）"
+  "comment": "実況風の熱い口調で、なぜその用語チョイスが神がかっていたのか、どこが勝敗を分けたのかを詳しく、熱量高めに解説するコメント（250〜350文字程度）"
 }}"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -112,7 +137,7 @@ def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
         data = json.loads(text)
         return data["winner"], data["comment"]
     except Exception as e:
-        return "A", f"マニアックな用語チョイスと熱い説得力により、{name_a}の勝利！"
+        return "A", f"なんと凄まじい激闘……！意表を突いた見事な用語チョイスと熱い説得力により、このラウンドは{name_a}の勝利だァーーッ！！"
 
 # ==========================================
 # 画面ロジック
@@ -125,12 +150,12 @@ if st.session_state.page == "menu":
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🌐 オンライン対戦（ルーム）", type="primary"):
+        if st.button("🌐 オンライン対戦（ルーム戦）", type="primary"):
             st.session_state.game_type = "online"
             st.session_state.page = "lobby"
             st.rerun()
     with col2:
-        if st.button("🤖 CPUと対戦"):
+        if st.button("🤖 ガチCPUと対戦"):
             st.session_state.game_type = "cpu"
             st.session_state.page = "setup"
             st.rerun()
@@ -144,9 +169,13 @@ elif st.session_state.page == "lobby":
             code = str(random.randint(1000, 9999))
             st.session_state.room_code = code
             st.session_state.is_host = True
+            st.session_state.round = 1
+            st.session_state.score_p1 = 0
+            st.session_state.score_p2 = 0
             fb_put(f"rooms/{code}", {
                 "host": st.session_state.player_name, "guest": "",
-                "status": "waiting", "battleMode": "waza", "round": 1
+                "status": "waiting", "battleMode": "waza", "round": 1,
+                "scoreP1": 0, "scoreP2": 0
             })
             st.session_state.page = "waiting"
             st.rerun()
@@ -158,6 +187,9 @@ elif st.session_state.page == "lobby":
                 if data:
                     st.session_state.room_code = input_code
                     st.session_state.is_host = False
+                    st.session_state.round = data.get("round", 1)
+                    st.session_state.score_p1 = 0
+                    st.session_state.score_p2 = 0
                     fb_patch(f"rooms/{input_code}", {"guest": st.session_state.player_name})
                     st.session_state.page = "setup"
                     st.rerun()
@@ -178,50 +210,66 @@ elif st.session_state.page == "waiting":
 
 # --- ルール設定画面 ---
 elif st.session_state.page == "setup":
-    st.subheader("⚙️ バトル部門選択")
+    st.subheader("⚙️ バトル部門選択（3本勝負）")
     selected_mode = st.radio("部門を選択", options=list(MODES.keys()), format_func=lambda x: MODES[x]["name"])
     st.caption(MODES[selected_mode]["desc"])
     
-    if st.button("バトルスタート！", type="primary"):
+    if st.button("3本勝負バトル開始！", type="primary"):
         st.session_state.game_mode = selected_mode
+        st.session_state.round = 1
+        st.session_state.score_p1 = 0
+        st.session_state.score_p2 = 0
         if st.session_state.game_type == "online" and st.session_state.is_host:
             fb_patch(f"rooms/{st.session_state.room_code}", {
                 "status": "playing", "battleMode": selected_mode, "round": 1,
-                "hostTerm": "", "hostDesc": "", "guestTerm": "", "guestDesc": ""
+                "scoreP1": 0, "scoreP2": 0,
+                "hostTerm": "", "hostDesc": "", "guestTerm": "", "guestDesc": "", "result": None
             })
         st.session_state.page = "input"
         st.rerun()
 
 # --- 入力画面 ---
 elif st.session_state.page == "input":
-    st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド ({MODES[st.session_state.game_mode]['name']})")
+    st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦 ({MODES[st.session_state.game_mode]['name']})")
+    st.write(f"現在のスコア: あなた **{st.session_state.score_p1}** - **{st.session_state.score_p2}** 相手/CPU")
     
     with st.form("input_form"):
-        term = st.text_input("社会科用語")
+        term = st.text_input("社会科用語（マニアックなほど高得点チャンス！）")
         desc = st.text_area(MODES[st.session_state.game_mode]["label"])
-        submit = st.form_submit_button("提出して勝負！", type="primary")
+        submit = st.form_submit_button("🔥 提出して勝負する！", type="primary")
         
-        if submit and term and desc:
-            if st.session_state.game_type == "online":
-                role = "host" if st.session_state.is_host else "guest"
-                fb_patch(f"rooms/{st.session_state.room_code}", {
-                    f"{role}Term": term, f"{role}Desc": desc
-                })
-                st.session_state.page = "wait_result"
-                st.rerun()
+        if submit:
+            if not term.strip() or not desc.strip():
+                st.error("用語と説明文の両方を入力してください。")
             else:
-                cpu_choice = random.choice(CPU_DATA[st.session_state.game_mode])
-                winner, comment = judge_with_gemini(
-                    term, desc, cpu_choice["t"], cpu_choice["d"],
-                    st.session_state.game_mode, st.session_state.player_name, "CPU"
-                )
-                st.session_state.result = {
-                    "termA": term, "descA": desc, "termB": cpu_choice["t"], "descB": cpu_choice["d"],
-                    "winner": "A" if winner == "A" else "B", "comment": comment,
-                    "nameA": st.session_state.player_name, "nameB": "CPU"
-                }
-                st.session_state.page = "result"
-                st.rerun()
+                if st.session_state.game_type == "online":
+                    role = "host" if st.session_state.is_host else "guest"
+                    fb_patch(f"rooms/{st.session_state.room_code}", {
+                        f"{role}Term": term, f"{role}Desc": desc
+                    })
+                    st.session_state.page = "wait_result"
+                    st.rerun()
+                else:
+                    # CPU対戦（ガチ・マニアックなプールからランダム抽出）
+                    cpu_choice = random.choice(CPU_DATA[st.session_state.game_mode])
+                    winner, comment = judge_with_gemini(
+                        term, desc, cpu_choice["t"], cpu_choice["d"],
+                        st.session_state.game_mode, st.session_state.player_name, "ガチCPU"
+                    )
+                    
+                    if winner == "A":
+                        st.session_state.score_p1 += 1
+                    else:
+                        st.session_state.score_p2 += 1
+                        
+                    st.session_state.result = {
+                        "termA": term, "descA": desc, "termB": cpu_choice["t"], "descB": cpu_choice["d"],
+                        "winner": winner, "comment": comment,
+                        "nameA": st.session_state.player_name, "nameB": "ガチCPU",
+                        "scoreP1": st.session_state.score_p1, "scoreP2": st.session_state.score_p2
+                    }
+                    st.session_state.page = "result"
+                    st.rerun()
 
 # --- 結果待機画面（オンライン） ---
 elif st.session_state.page == "wait_result":
@@ -236,16 +284,26 @@ elif st.session_state.page == "wait_result":
                 data["hostTerm"], data["hostDesc"], data["guestTerm"], data["guestDesc"],
                 data["battleMode"], data["host"], data["guest"]
             )
+            
+            p1_score = data.get("scoreP1", 0)
+            p2_score = data.get("scoreP2", 0)
+            if winner == "A": p1_score += 1
+            else: p2_score += 1
+            
             res_data = {
                 "termA": data["hostTerm"], "descA": data["hostDesc"],
                 "termB": data["guestTerm"], "descB": data["guestDesc"],
                 "winner": winner, "comment": comment,
-                "nameA": data["host"], "nameB": data["guest"]
+                "nameA": data["host"], "nameB": data["guest"],
+                "scoreP1": p1_score, "scoreP2": p2_score
             }
-            fb_patch(f"rooms/{st.session_state.room_code}", {"result": res_data})
+            fb_patch(f"rooms/{st.session_state.room_code}", {"result": res_data, "scoreP1": p1_score, "scoreP2": p2_score})
         
         if data.get("result"):
-            st.session_state.result = data["result"]
+            res = data["result"]
+            st.session_state.result = res
+            st.session_state.score_p1 = res["scoreP1"]
+            st.session_state.score_p2 = res["scoreP2"]
             st.session_state.page = "result"
             st.rerun()
         else:
@@ -254,10 +312,10 @@ elif st.session_state.page == "wait_result":
 # --- 結果画面 ---
 elif st.session_state.page == "result":
     res = st.session_state.result
-    st.subheader("🏆 判定結果")
+    st.subheader(f"🏆 第 {st.session_state.round} ラウンド 判定結果")
     
     winner_name = res["nameA"] if res["winner"] == "A" else res["nameB"]
-    st.success(f"勝者：**{winner_name}** 👑")
+    st.success(f"このラウンドの勝者：**{winner_name}** 👑")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -267,9 +325,49 @@ elif st.session_state.page == "result":
         st.markdown(f"**【{res['nameB']}】**")
         st.info(f"**{res['termB']}**\n\n{res['descB']}")
         
-    st.markdown("### 🤖 AI審判の評価コメント")
-    st.write(res["comment"])
+    st.markdown("### 🤖 カリスマAI審判の実況解説")
+    st.markdown(f"<div class='ai-comment-box'>{res['comment']}</div>", unsafe_allow_html=True)
     
+    st.write("---")
+    st.write(f"現在のトータルスコア: **{res['nameA']}** `【 {res['scoreP1']}勝 】` - `【 {res['scoreP2']}勝 】` **{res['nameB']}**")
+    
+    # ラウンド進行判定
+    if st.session_state.round < 3:
+        if st.button("次ラウンドへ進む ➔", type="primary"):
+            st.session_state.round += 1
+            if st.session_state.game_type == "online" and st.session_state.is_host:
+                fb_patch(f"rooms/{st.session_state.room_code}", {
+                    "round": st.session_state.round,
+                    "hostTerm": "", "hostDesc": "", "guestTerm": "", "guestDesc": "", "result": None
+                })
+            st.session_state.page = "input"
+            st.rerun()
+    else:
+        if st.button("🏆 最終勝者を決定する！", type="primary"):
+            st.session_state.page = "final"
+            st.rerun()
+
+# --- 最終結果画面 ---
+elif st.session_state.page == "final":
+    st.balloons()
+    st.subheader("🎉 3本勝負 最終結果発表！ 🎉")
+    
+    p1 = st.session_state.score_p1
+    p2 = st.session_state.score_p2
+    
+    if p1 > p2:
+        st.header(f"👑 総合優勝：{st.session_state.player_name} ！！")
+        st.caption("圧倒的な用語チョイスのセンスと知略、そして深い歴史愛が審判の心を撃ち抜きました！")
+    elif p2 > p1:
+        st.header("💀 敗北……勝者：対戦相手 / CPU")
+        st.caption("相手の鋭いマニアックな用語攻勢の前に惜敗！次はさらなるマニアックな知識でリベンジだ！")
+    else:
+        st.header("🤝 決着つかずのドロー！")
+        st.caption("互いに一歩も譲らない驚異の知識量と熱量！まさに伝説に残る名勝負でした！")
+        
+    st.metric(label="最終勝利数", value=f"{p1} 勝 - {p2} 勝")
+    
+    st.write("---")
     if st.button("タイトルに戻る"):
         st.session_state.page = "menu"
         st.rerun()
