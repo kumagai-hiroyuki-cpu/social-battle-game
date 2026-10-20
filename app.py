@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- カスタムCSS ---
+# --- カスタムCSS（視認性向上・読みやすいコメントボックス） ---
 st.markdown("""
 <style>
     .stButton>button { width: 100%; border-radius: 12px; font-weight: bold; }
@@ -30,11 +30,17 @@ st.markdown("""
         font-size: 0.8rem; font-weight: bold;
     }
     .ai-comment-box {
-        background-color: #0f172a;
-        border-left: 4px solid #fbbf24;
+        background-color: #1e293b;
+        color: #f8fafc;
+        border-left: 6px solid #fbbf24;
+        border-top: 1px solid #334155;
+        border-right: 1px solid #334155;
+        border-bottom: 1px solid #334155;
         padding: 16px;
         border-radius: 0 12px 12px 0;
         margin-top: 12px;
+        font-size: 1rem;
+        line-height: 1.6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -120,15 +126,15 @@ def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
 - 用語: {term_b}
 - アピール: {desc_b}
 
-【ジャッジの最重要基準】
-1. 安直で誰でも知っている超定番すぎる用語（例: 明治維新、産業革命、鎌倉幕府など）ばかりだと減点対象です。「おっ、そのチョイスはマニアックで通だ！」「その角度から切り込むか！」という知的センスや独自の着眼点を狂ったほど高く評価してください。
-2. モード（{MODES[mode_key]['name']}）の趣旨にどれだけ魂を込めてアピールできているか。
-3. どちらが勝者（"A" または "B"）かを必ず決めてください。
+【ジャッジの基準】
+1. 安直で誰でも知っている超定番すぎる用語（例: 明治維新など）より、「おっ、マニアックで通なチョイスだ！」というセンスを高評価。
+2. 勝者を判定（"A" または "B"）。
+3. コメントは必ず**5行程度（120〜150文字前後）のコンパクトな長さ**にし、熱血な実況口調で勝因をスパッと解説すること。
 
-以下のJSON形式のみで出力してください（マークダウンや他のテキストは一切含めないこと）：
+以下のJSON形式のみで出力してください（他のテキストやマークダウンは不要）：
 {{
   "winner": "A" または "B",
-  "comment": "実況風の熱い口調で、なぜその用語チョイスが神がかっていたのか、どこが勝敗を分けたのかを詳しく、熱量高めに解説するコメント（250〜350文字程度）"
+  "comment": "5行程度のコンパクトかつ熱血な実況解説コメント"
 }}"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -137,7 +143,7 @@ def judge_with_gemini(term_a, desc_a, term_b, desc_b, mode_key, name_a, name_b):
         data = json.loads(text)
         return data["winner"], data["comment"]
     except Exception as e:
-        return "A", f"なんと凄まじい激闘……！意表を突いた見事な用語チョイスと熱い説得力により、このラウンドは{name_a}の勝利だァーーッ！！"
+        return "A", f"なんと凄まじい激闘！意表を突く見事な用語チョイスと熱い説得力により、このラウンドは{name_a}の勝利だァーーッ！！"
 
 # ==========================================
 # 画面ロジック
@@ -250,17 +256,14 @@ elif st.session_state.page == "input":
                     st.session_state.page = "wait_result"
                     st.rerun()
                 else:
-                    # CPU対戦（ガチ・マニアックなプールからランダム抽出）
                     cpu_choice = random.choice(CPU_DATA[st.session_state.game_mode])
                     winner, comment = judge_with_gemini(
                         term, desc, cpu_choice["t"], cpu_choice["d"],
                         st.session_state.game_mode, st.session_state.player_name, "ガチCPU"
                     )
                     
-                    if winner == "A":
-                        st.session_state.score_p1 += 1
-                    else:
-                        st.session_state.score_p2 += 1
+                    if winner == "A": st.session_state.score_p1 += 1
+                    else: st.session_state.score_p2 += 1
                         
                     st.session_state.result = {
                         "termA": term, "descA": desc, "termB": cpu_choice["t"], "descB": cpu_choice["d"],
@@ -278,7 +281,6 @@ elif st.session_state.page == "wait_result":
     data = fb_get(f"rooms/{st.session_state.room_code}")
     
     if data:
-        # ホスト側がAI判定を実行
         if st.session_state.is_host and data.get("hostTerm") and data.get("guestTerm") and not data.get("result"):
             winner, comment = judge_with_gemini(
                 data["hostTerm"], data["hostDesc"], data["guestTerm"], data["guestDesc"],
@@ -331,7 +333,6 @@ elif st.session_state.page == "result":
     st.write("---")
     st.write(f"現在のトータルスコア: **{res['nameA']}** `【 {res['scoreP1']}勝 】` - `【 {res['scoreP2']}勝 】` **{res['nameB']}**")
     
-    # ラウンド進行判定
     if st.session_state.round < 3:
         if st.button("次ラウンドへ進む ➔", type="primary"):
             st.session_state.round += 1
