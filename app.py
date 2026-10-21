@@ -85,35 +85,39 @@ if "round" not in st.session_state: st.session_state.round = 1
 if "score_p1" not in st.session_state: st.session_state.score_p1 = 0
 if "score_p2" not in st.session_state: st.session_state.score_p2 = 0
 if "cpu_term" not in st.session_state: st.session_state.cpu_term = ""
+if "cpu_reason" not in st.session_state: st.session_state.cpu_reason = ""
 
-# --- 💡 AIによるCPU用語の自動生成（日本史・世界史・地理・倫理・政治経済） ---
-def generate_kansho_cpu_term():
+# --- 💡 AIによるCPU用語と理由の自動生成 ---
+def generate_kansho_cpu():
     prompt = """あなたは高校社会科（日本史・世界史・地理・倫理・政治経済）の出題者です。
-高校レベルの重要かつ魅力的な社会科用語（日本史・世界史・地理・倫理・政治経済のいずれか）を1つだけ選んで、その用語の名前だけを答えてください。
-説明や記号、前置きは一切不要で、用語名のみを出力してください。"""
+高校レベルの重要かつ魅力的な社会科用語を1つと、その用語を選んだ熱い理由・説明（100文字程度）を考えてください。
+以下のJSON形式のみで出力してください（他のテキストやマークダウンは不要）：
+{
+  "cpu_term": "選んだ用語名",
+  "cpu_reason": "その用語を選んだ理由や説明"
+}"""
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
-        term = response.text.strip().replace('「', '').replace('」', '').replace('【', '').replace('】', '')
-        if term:
-            return term
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        return data["cpu_term"], data["cpu_reason"]
     except:
         pass
     
-    fallback_topics = [
-        "大化の改新", "サンフランシスコ平和条約", "三世一身の法", "加藤高明内閣", "墾田永年私財法", "陸奥宗光の条約改正",
-        "ハンムラビ法典", "エンクロージャー", "カノッサの屈辱", "ザントホップの農法", "ミティレンの議論", "サラトガの戦い", 
-        "ヴォルムス協約", "大憲章（マグナ・カルタ）", "アヴィニョン捕囚", "ナントの勅令", "ウェストファリア条約", "ロカルノ条約",
-        "カルスト地形", "サンゴ礁の離水", "回帰線砂漠", "フィヨルドとエスカー", "アグロフォレストリー",
-        "プロテスタントの倫理", "王陽明の知行合一", "ベンサムの最大多数の最大幸福", "ニーチェのルサンチマン", "カントの道徳律", "レヴィ＝ストロースの構造主義",
-        "ブロック経済", "ロールズの正義論", "ワイマール憲法", "夜警国家と福祉国家", "コモンズの悲劇", "ペティ＝クラークの法則", "ブレトンウッズ体制"
+    fallback_list = [
+        ("サンフランシスコ平和条約", "連合国との講和を結び、日本の国際社会への復帰と主権完全回復を果たした歴史的転換点だからだ！"),
+        ("エンクロージャー", "農地を囲い込んで農業資本主義を誕生させ、産業革命への道を開いた巨大な歴史の歯車だからだ！"),
+        ("カルスト地形", "雨水の溶食作用によってドリーネや鍾乳洞を作り上げる、地球のダイナミックな造形美そのものだからだ！"),
+        ("プロテスタントの倫理", "勤勉と蓄財を神聖視し、近代資本主義の精神的土台を根底から作り上げた思想的マグマだからだ！")
     ]
-    return random.choice(fallback_topics)
+    fb = random.choice(fallback_list)
+    return fb[0], fb[1]
 
-# --- 🎯 評価基準を改訂したAI審査員長（正当性・熱量・鑑賞眼を総合評価） ---
+# --- 🎯 評価基準を改訂したAI審査員長 ---
 def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, name_a, name_b):
     prompt = f"""あなたは知性と熱血を兼ね備えたカリスマ社会科教師であり、俳句甲子園の審査員長です。
-【歴史・社会科用語 鑑賞バトル】（お互いの用語をオープンにし、「選んだ理由・説明」と「相手の用語への鑑賞・分析」で競う形式）のジャッジを行います。
+【歴史・社会科用語 鑑賞バトル】のジャッジを行います。
 
 【プレイヤーA: {name_a}】
 - 用語: {term_a}
@@ -125,16 +129,10 @@ def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, 
 - 選んだ理由・説明: {reason_b}
 - 相手（{name_a}）の用語への鑑賞・ツッコミ: {review_b}
 
-【判定基準（重要）】
-※用語がマニアックかどうかは評価基準から除外してください。定番の用語であっても問題ありません。
-以下の3点を総合的に審査して勝敗を決めてください：
-1. **説明の正当性・的確性**: 用語に対する理解や歴史的・社会科的事実の説明が正しいか。
-2. **熱量・プレゼン力**: 選んだ理由や主張に情熱、熱量、説得力があるか。
-3. **鑑賞眼・分析力**: 相手の選んだ用語に対する鑑賞・ツッコミが、相手の意図や用語の背景を捉えていて鋭いか。
-
-【出力形式】
-勝者を判定し（"A" または "B"）、審判講評コメント（5行程度 / 120〜150文字前後）を作成してください。
-※講評では、双方の熱量や正当性、鑑賞眼の良さに触れる熱血で説得力ある解説にしてください。
+【判定基準】
+1. 説明の正当性・的確性
+2. 熱量・プレゼン力
+3. 相手の用語に対する鑑賞眼・分析力（相手の用語をしっかり踏まえたツッコミができているか）
 
 以下のJSON形式のみで出力してください（他のテキストやマークダウンは不要）：
 {{
@@ -148,7 +146,7 @@ def judge_kansho_battle(term_a, reason_a, review_a, term_b, reason_b, review_b, 
         data = json.loads(text)
         return data["winner"], data["comment"]
     except Exception as e:
-        return "A", f"用語説明の的確さと熱量が激突した名勝負！特に{term_a}に対する説得力溢れる情熱と鋭い鑑賞眼を見せた{name_a}の勝利だァーーッ！"
+        return "A", f"用語説明の的確さと熱量が激突した名勝負！特に鋭い鑑賞眼を見せた{name_a}の勝利だァーーッ！"
 
 # ==========================================
 # 画面ロジック
@@ -160,8 +158,8 @@ if st.session_state.page == "menu":
     st.session_state.player_name = st.text_input("あなたの名前", value=st.session_state.player_name)
     
     st.write("---")
-    st.markdown("### 📜 ルール：鑑賞バトルとは？")
-    st.caption("お互いの社会科用語がオープンになった状態で、①自分の用語の選定理由・熱量説明 と ②相手の用語への鑑賞（分析・ツッコミ）を記入し、正当性・熱量・鑑賞眼で総合勝負します！")
+    st.markdown("### 📜 ルール：2ステップ鑑賞バトルとは？")
+    st.caption("① まず自分たちの「用語と理由」を出し合ってお互いの用語を確認します。\n② 次に、相手の用語を見た上で「鑑賞・ツッコミ」を記入し、勝負を競います！")
     
     st.write("---")
     col1, col2 = st.columns(2)
@@ -227,14 +225,17 @@ elif st.session_state.page == "waiting":
 # --- ルール設定画面 ---
 elif st.session_state.page == "setup":
     st.subheader("⚙️ 鑑賞バトル（3本勝負）開始")
-    st.info("第1段階として、ラウンド開始時に社会科用語をそれぞれオープンします！")
     
     if st.button("3本勝負バトルスタート！", type="primary"):
         st.session_state.round = 1
         st.session_state.score_p1 = 0
         st.session_state.score_p2 = 0
-        with st.spinner("🤖 AIが第一試合の用語を選定中..."):
-            st.session_state.cpu_term = generate_kansho_cpu_term()
+        
+        if st.session_state.game_type == "cpu":
+            with st.spinner("🤖 AIが第一試合の用語と思案中..."):
+                t, r = generate_kansho_cpu()
+                st.session_state.cpu_term = t
+                st.session_state.cpu_reason = r
         
         if st.session_state.game_type == "online" and st.session_state.is_host:
             fb_patch(f"rooms/{st.session_state.room_code}", {
@@ -243,45 +244,104 @@ elif st.session_state.page == "setup":
                 "hostTerm": "", "hostReason": "", "hostReview": "",
                 "guestTerm": "", "guestReason": "", "guestReview": "", "result": None
             })
-        st.session_state.page = "input"
+        st.session_state.page = "input_term"
         st.rerun()
 
-# --- 入力画面（鑑賞バトルの核心） ---
-elif st.session_state.page == "input":
-    st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦")
+# --- ステップ1：用語と理由の入力画面 ---
+elif st.session_state.page == "input_term":
+    st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦 【ステップ1: 用語の提出】")
     st.write(f"現在のスコア: あなた **{st.session_state.score_p1}** - **{st.session_state.score_p2}** 相手/CPU")
-    
-    if st.session_state.game_type == "cpu":
-        st.markdown(f"<div class='battle-card'><span class='mode-badge'>相手（CPU）のチョイス用語</span><div class='term-title'>{st.session_state.cpu_term}</div></div>", unsafe_allow_html=True)
+    st.info("💡 まずは、自分が勝負に出す『社会科用語』とその『選んだ理由（説明）』だけを入力してください。相手の用語はこの後オープンされます！")
 
-    with st.form("kansho_form"):
-        my_term = st.text_input("① あなたが勝負に出す社会科用語")
-        my_reason = st.text_area("② なぜこの用語を選んだか？（用語の正しい説明＆熱量アピール）")
+    with st.form("term_form"):
+        my_term = st.text_input("① 勝負に出す社会科用語")
+        my_reason = st.text_area("② なぜこの用語を選んだか？（歴史的背景・説明・熱量アピール）")
         
-        target_name = "相手（CPU）" if st.session_state.game_type == "cpu" else "対戦相手"
-        my_review = st.text_area(f"③ 【鑑賞】{target_name}が選んだ用語に対する分析・洞察・ツッコミ")
+        submit_term = st.form_submit_button("🔥 用語を提出して相手の用語を見る！", type="primary")
         
-        submit = st.form_submit_button("🔥 熱量と鑑賞文を提出して判定へ！", type="primary")
-        
-        if submit:
-            if not my_term.strip() or not my_reason.strip() or not my_review.strip():
-                st.error("①用語、②理由・熱量説明、③相手への鑑賞のすべてを入力してください！")
+        if submit_term:
+            if not my_term.strip() or not my_reason.strip():
+                st.error("①用語と②理由の両方を入力してください！")
             else:
                 if st.session_state.game_type == "online":
                     role = "host" if st.session_state.is_host else "guest"
                     fb_patch(f"rooms/{st.session_state.room_code}", {
-                        f"{role}Term": my_term, f"{role}Reason": my_reason, f"{role}Review": my_review
+                        f"{role}Term": my_term, f"{role}Reason": my_reason
+                    })
+                    st.session_state.page = "wait_term"
+                    st.rerun()
+                else:
+                    # CPU対戦時は自分の情報をセッションに保持して次へ
+                    st.session_state.my_temp_term = my_term
+                    st.session_state.my_temp_reason = my_reason
+                    st.session_state.page = "input_review"
+                    st.rerun()
+
+# --- ステップ1の待機画面（オンライン用） ---
+elif st.session_state.page == "wait_term":
+    st.info("⏳ 対戦相手が用語を提出するのを待っています...")
+    time.sleep(2)
+    data = fb_get(f"rooms/{st.session_state.room_code}")
+    
+    if data:
+        role = "host" if st.session_state.is_host else "guest"
+        opp_role = "guest" if st.session_state.is_host else "host"
+        if data.get(f"{role}Term") and data.get(f"{opp_role}Term"):
+            st.session_state.page = "input_review"
+            st.rerun()
+        else:
+            st.rerun()
+
+# --- ステップ2：相手の用語を見てからの「鑑賞」入力画面 ---
+elif st.session_state.page == "input_review":
+    st.subheader(f"⚔️ 第 {st.session_state.round} ラウンド / 全3戦 【ステップ2: 相手の用語への鑑賞】")
+    
+    # 相手の用語を表示
+    if st.session_state.game_type == "cpu":
+        opp_term = st.session_state.cpu_term
+        opp_reason = st.session_state.cpu_reason
+        opp_name = "鑑賞CPU"
+    else:
+        data = fb_get(f"rooms/{st.session_state.room_code}")
+        opp_role = "guest" if st.session_state.is_host else "host"
+        opp_name = data.get(opp_role, "対戦相手")
+        opp_term = data.get(opp_role + "Term", "")
+        opp_reason = data.get(opp_role + "Reason", "")
+
+    st.markdown(f"""
+    <div class='battle-card'>
+        <span class='mode-badge'>{opp_name} が選んだ用語（オープン！）</span>
+        <div class='term-title'>{opp_term}</div>
+        <p style='margin-top: 8px; color: #cbd5e1;'><strong>選定理由：</strong> {opp_reason}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.info("💡 相手の用語を確認しましたね！この用語に対するあなたの「鑑賞・分析・ツッコミ」を記入して判定へ進みましょう。")
+
+    with st.form("review_form"):
+        my_review = st.text_area(f"③ 【鑑賞】{opp_name}が選んだ用語に対する分析・洞察・ツッコミ")
+        submit_review = st.form_submit_button("🔥 鑑賞文を提出してAI審査員長の判定を受ける！", type="primary")
+        
+        if submit_review:
+            if not my_review.strip():
+                st.error("相手の用語への鑑賞・ツッコミを記入してください！")
+            else:
+                if st.session_state.game_type == "online":
+                    role = "host" if st.session_state.is_host else "guest"
+                    fb_patch(f"rooms/{st.session_state.room_code}", {
+                        f"{role}Review": my_review
                     })
                     st.session_state.page = "wait_result"
                     st.rerun()
                 else:
+                    # CPU戦の判定処理
+                    my_term = st.session_state.my_temp_term
+                    my_reason = st.session_state.my_temp_reason
+                    
                     with st.spinner("🤖 AI審査員長が双方の正当性・熱量・鑑賞眼を審議中..."):
-                        cpu_reason = f"{st.session_state.cpu_term}は時代の構造や社会システムを根底から方向づけた不可欠な用語だ。歴史的ファクトとしてもその重要性は揺るぎない！"
-                        cpu_review = f"プレイヤーの選んだ『{my_term}』の正確な理解と情熱は評価できる。しかし、相手の意図を見ぬく鑑賞の深さでは我が{st.session_state.cpu_term}へのアプローチも負けてはいない！"
-                        
                         winner, comment = judge_kansho_battle(
                             my_term, my_reason, my_review,
-                            st.session_state.cpu_term, cpu_reason, cpu_review,
+                            st.session_state.cpu_term, st.session_state.cpu_reason, f"プレイヤーの選んだ『{my_term}』も面白いが、我が{st.session_state.cpu_term}の歴史的意義の深さには一歩譲るな。",
                             st.session_state.player_name, "鑑賞CPU"
                         )
                     
@@ -290,7 +350,7 @@ elif st.session_state.page == "input":
                         
                     st.session_state.result = {
                         "termA": my_term, "reasonA": my_reason, "reviewA": my_review,
-                        "termB": st.session_state.cpu_term, "reasonB": cpu_reason, "reviewB": cpu_review,
+                        "termB": st.session_state.cpu_term, "reasonB": st.session_state.cpu_reason, "reviewB": f"プレイヤーの選んだ『{my_term}』も面白いが、我が{st.session_state.cpu_term}の歴史的意義の深さには一歩譲るな。",
                         "winner": winner, "comment": comment,
                         "nameA": st.session_state.player_name, "nameB": "鑑賞CPU",
                         "scoreP1": st.session_state.score_p1, "scoreP2": st.session_state.score_p2
@@ -300,12 +360,12 @@ elif st.session_state.page == "input":
 
 # --- 結果待機画面（オンライン） ---
 elif st.session_state.page == "wait_result":
-    st.info("対戦相手の提出とAI鑑賞審判の判定を待っています...")
+    st.info("⏳ 対戦相手の鑑賞文の提出とAI鑑賞審判の判定を待っています...")
     time.sleep(2)
     data = fb_get(f"rooms/{st.session_state.room_code}")
     
     if data:
-        if st.session_state.is_host and data.get("hostTerm") and data.get("guestTerm") and not data.get("result"):
+        if st.session_state.is_host and data.get("hostReview") and data.get("guestReview") and not data.get("result"):
             winner, comment = judge_kansho_battle(
                 data["hostTerm"], data["hostReason"], data["hostReview"],
                 data["guestTerm"], data["guestReason"], data["guestReview"],
@@ -347,10 +407,10 @@ elif st.session_state.page == "result":
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"**【{res['nameA']}】**")
-        st.info(f"用語: **{res['termA']}**\n\n📌 **理由・説明**: {res['reasonA']}\n\n💬 **鑑賞**: {res['reviewA']}")
+        st.info(f"用語: **{res['termA']}**\n\n📌 **理由**: {res['reasonA']}\n\n💬 **鑑賞**: {res['reviewA']}")
     with col2:
         st.markdown(f"**【{res['nameB']}】**")
-        st.info(f"用語: **{res['termB']}**\n\n📌 **理由・説明**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
+        st.info(f"用語: **{res['termB']}**\n\n📌 **理由**: {res['reasonB']}\n\n💬 **鑑賞**: {res['reviewB']}")
         
     st.markdown("### 🤖 審査員長AIの熱血講評")
     st.markdown(f"<div class='ai-comment-box'>{res['comment']}</div>", unsafe_allow_html=True)
@@ -361,15 +421,18 @@ elif st.session_state.page == "result":
     if st.session_state.round < 3:
         if st.button("次ラウンドへ進む ➔", type="primary"):
             st.session_state.round += 1
-            with st.spinner("🤖 次ラウンドの用語を選定中..."):
-                st.session_state.cpu_term = generate_kansho_cpu_term()
+            if st.session_state.game_type == "cpu":
+                with st.spinner("🤖 次ラウンドの用語を選定中..."):
+                    t, r = generate_kansho_cpu()
+                    st.session_state.cpu_term = t
+                    st.session_state.cpu_reason = r
             if st.session_state.game_type == "online" and st.session_state.is_host:
                 fb_patch(f"rooms/{st.session_state.room_code}", {
                     "round": st.session_state.round,
                     "hostTerm": "", "hostReason": "", "hostReview": "",
                     "guestTerm": "", "guestReason": "", "guestReview": "", "result": None
                 })
-            st.session_state.page = "input"
+            st.session_state.page = "input_term"
             st.rerun()
     else:
         if st.button("🏆 最終勝者を決定する！", type="primary"):
